@@ -62,7 +62,7 @@ const firebaseService = FirebaseService.getInstance();
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { userId, source = 'all' } = req.query;
+    const { userId, source = 'firebase' } = req.query;
 
     let externalTasks: Task[] = [];
     let firebaseTasks: Task[] = [];

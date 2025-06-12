@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import path from 'path';
 
 // Importar configuraciones y servicios
 import { setupSwagger } from './config/swagger';
@@ -55,16 +56,17 @@ class TaskManagementApp {
   }
 
   private initializeMiddlewares(): void {
-    // Seguridad básica con Helmet
+    // Seguridad básica con Helmet (modificado para permitir el frontend)
     this.app.use(
       helmet({
         contentSecurityPolicy: {
           directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", 'fonts.googleapis.com'],
-            fontSrc: ["'self'", 'fonts.gstatic.com'],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", 'data:', 'validator.swagger.io']
+            styleSrc: ["'self'", "'unsafe-inline'", 'fonts.googleapis.com', 'cdnjs.cloudflare.com'],
+            fontSrc: ["'self'", 'fonts.gstatic.com', 'cdnjs.cloudflare.com'],
+            scriptSrc: ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com'],
+            imgSrc: ["'self'", 'data:', 'validator.swagger.io'],
+            connectSrc: ["'self'", 'http://localhost:3000', 'https://jsonplaceholder.typicode.com']
           }
         }
       })
@@ -100,6 +102,11 @@ class TaskManagementApp {
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+    // 👈 NUEVO: Servir archivos estáticos del frontend
+    const frontendPath = path.join(__dirname, '../frontend');
+    this.app.use('/frontend', express.static(frontendPath));
+    this.app.use(express.static(frontendPath)); // También en la raíz
+
     // Logging middleware
     this.app.use((req: Request, res: Response, next: NextFunction) => {
       const start = Date.now();
@@ -114,11 +121,17 @@ class TaskManagementApp {
   }
 
   private initializeRoutes(): void {
-    // Ruta de bienvenida
+    // 👈 NUEVO: Ruta principal redirige al frontend
     this.app.get('/', (req: Request, res: Response) => {
+      res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    });
+
+    // Ruta de información de la API
+    this.app.get('/info', (req: Request, res: Response) => {
       res.json({
         message: 'Task Management API',
         version: '1.0.0',
+        frontend: '/frontend/',
         documentation: '/swagger-ui.html',
         health: '/api/health',
         endpoints: {
@@ -208,14 +221,20 @@ class TaskManagementApp {
       });
     });
 
-    // 404 handler para rutas no encontradas
+    // 👈 MODIFICADO: 404 handler para rutas no encontradas (no API)
     this.app.use('*', (req: Request, res: Response) => {
-      res.status(404).json({
-        error: 'Route not found',
-        details: `Cannot ${req.method} ${req.originalUrl}`,
-        timestamp: new Date().toISOString(),
-        suggestion: 'Visit /swagger-ui.html for API documentation'
-      });
+      // Si es una ruta de API, enviar JSON
+      if (req.originalUrl.startsWith('/api/')) {
+        res.status(404).json({
+          error: 'Route not found',
+          details: `Cannot ${req.method} ${req.originalUrl}`,
+          timestamp: new Date().toISOString(),
+          suggestion: 'Visit /swagger-ui.html for API documentation'
+        });
+      } else {
+        // Para rutas del frontend, servir index.html (SPA routing)
+        res.sendFile(path.join(__dirname, '../frontend/index.html'));
+      }
     });
   }
 
@@ -256,6 +275,15 @@ class TaskManagementApp {
         console.warn('⚠️  External service not available');
       }
 
+      // Verificar si existe el directorio frontend
+      const frontendPath = path.join(__dirname, '../frontend');
+      const fs = require('fs');
+      if (fs.existsSync(frontendPath)) {
+        console.log('✅ Frontend directory found');
+      } else {
+        console.warn('⚠️  Frontend directory not found - create /frontend folder');
+      }
+
       // Iniciar servidor
       this.app.listen(this.port, () => {
         console.log('🚀 Task Management API started successfully!');
@@ -263,6 +291,7 @@ class TaskManagementApp {
         console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
         console.log('');
         console.log('📚 Available endpoints:');
+        console.log(`   • Frontend Application: http://localhost:${this.port}/`);
         console.log(`   • API Documentation: http://localhost:${this.port}/swagger-ui.html`);
         console.log(`   • Health Check: http://localhost:${this.port}/api/health`);
         console.log(`   • Tasks API: http://localhost:${this.port}/api/tasks`);

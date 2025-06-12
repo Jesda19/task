@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Management - Gestión de Tareas</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link href="styles.css" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="container">
+        <div class="header-content">
+          <h1 class="logo">Gestor de tareas</h1>
+          <div class="header-actions">
+            <button class="btn btn-primary" id="addTaskBtn">
+              <i class="fas fa-plus"></i>
+              Nueva Tarea
+            </button>
+            <button class="btn btn-secondary" id="refreshBtn">
+              <i class="fas fa-sync-alt"></i>
+              Actualizar
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <div class="container">
+        <!-- Stats Cards -->
+        <div class="stats-grid" id="statsContainer">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-list"></i>
+            </div>
+            <div class="stat-content">
+              <h3 id="totalTasks">0</h3>
+              <p>Total de Tareas</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon completed">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+              <h3 id="completedTasks">0</h3>
+              <p>Completadas</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon pending">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+              <h3 id="pendingTasks">0</h3>
+              <p>Pendientes</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon external">
+              <i class="fas fa-cloud"></i>
+            </div>
+            <div class="stat-content">
+              <h3 id="externalTasks">0</h3>
+              <p>Externas</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-section">
+          <div class="filters">
+            <div class="filter-group">
+              <label for="statusFilter">Estado:</label>
+              <select id="statusFilter" class="filter-select">
+                <option value="all">Todas</option>
+                <option value="completed">Completadas</option>
+                <option value="pending">Pendientes</option>
+              </select>
+            </div>
+            <!-- <div class="filter-group">
+              <label for="sourceFilter">Origen:</label>
+              <select id="sourceFilter" class="filter-select">
+                <option value="all">Todos</option>
+                <option value="external">Externas</option>
+                <option value="firebase">Firebase</option>
+                <option value="merged">Fusionadas</option>
+              </select>
+            </div> -->
+            <div class="filter-group">
+              <label for="userFilter">Usuario:</label>
+              <select id="userFilter" class="filter-select">
+                <option value="all">Todos</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Buscar tareas..."
+                class="search-input"
+              />
+              <i class="fas fa-search search-icon"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="loading" id="loadingSpinner">
+          <div class="spinner"></div>
+          <p>Cargando tareas...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">
+            <i class="fas fa-tasks"></i>
+          </div>
+          <h2>No hay tareas</h2>
+          <p>Comienza creando tu primera tarea</p>
+          <button class="btn btn-primary" onclick="openTaskModal()">
+            <i class="fas fa-plus"></i>
+            Crear Primera Tarea
+          </button>
+        </div>
+
+        <!-- Error State -->
+        <div class="error-state" id="errorState">
+          <div class="error-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <h2>Error al cargar tareas</h2>
+          <p id="errorMessage">Ha ocurrido un error inesperado</p>
+          <button class="btn btn-secondary" onclick="loadTasks()">
+            <i class="fas fa-redo"></i>
+            Intentar de nuevo
+          </button>
+        </div>
+
+        <!-- Tasks Grid -->
+        <div class="tasks-grid" id="tasksContainer">
+          <!-- Tasks will be rendered here -->
+        </div>
+      </div>
+    </main>
+
+    <!-- Task Modal -->
+    <div class="modal-overlay" id="taskModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 id="modalTitle">Nueva Tarea</h2>
+          <button class="modal-close" onclick="closeTaskModal()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <form id="taskForm" class="modal-body">
+          <input type="hidden" id="taskId" />
+
+          <div class="form-group">
+            <label for="taskTitle">Título *</label>
+            <input
+              type="text"
+              id="taskTitle"
+              required
+              class="form-input"
+              placeholder="Ingresa el título de la tarea"
+            />
+            <span class="error-message" id="titleError"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="taskDescription">Descripción</label>
+            <textarea
+              id="taskDescription"
+              class="form-textarea"
+              rows="4"
+              placeholder="Descripción detallada de la tarea (opcional)"
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskUserId">Usuario</label>
+              <input
+                type="text"
+                id="taskUserId"
+                class="form-input"
+                placeholder="ID del usuario"
+                value="1"
+              />
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="taskCompleted" class="form-checkbox" />
+                <span class="checkmark"></span>
+                Marcar como completada
+              </label>
+            </div>
+          </div>
+        </form>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeTaskModal()">
+            Cancelar
+          </button>
+          <button type="submit" form="taskForm" class="btn btn-primary" id="saveTaskBtn">
+            <i class="fas fa-save"></i>
+            Guardar Tarea
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="modal-overlay" id="deleteModal">
+      <div class="modal modal-sm">
+        <div class="modal-header">
+          <h2>Confirmar Eliminación</h2>
+          <button class="modal-close" onclick="closeDeleteModal()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="delete-confirmation">
+            <div class="delete-icon">
+              <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3>¿Eliminar tarea?</h3>
+            <p>Esta acción no se puede deshacer.</p>
+            <p class="task-title" id="deleteTaskTitle"></p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+            <i class="fas fa-trash"></i>
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer">
+      <!-- Toasts will be added here -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/task-service.js"></script>
+    <script src="js/ui-components.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
